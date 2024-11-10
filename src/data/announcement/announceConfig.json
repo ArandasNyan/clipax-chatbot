@@ -1,0 +1,7 @@
+{
+  "#arandas_izimirunelian": {
+    "isActive": true,
+    "message": "Não esqueçam de cliparem os melhores momentos da live! Use !clipe <nome do seu clipe>.",
+    "interval": 60000
+  }
+}
