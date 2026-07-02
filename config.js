@@ -8,8 +8,8 @@ require('dotenv').config();
  * @property {string|number} port - Porta em que o servidor deve rodar.
  */
 
-/** 
- * @type {ServerConfig} 
+/**
+ * @type {ServerConfig}
  * @description Dados necessários para callbacks, redirects e mais.
  */
 const server = {
@@ -56,8 +56,8 @@ const server = {
  * @property {DiscordConfig} discord - Configurações específicas para a API do Discord.
  */
 
-/** 
- * @type {ApiConfig} 
+/**
+ * @type {ApiConfig}
  * @description Configurações de Api: Facilitará conexões precisas com apis externas.
  */
 const api = {
@@ -101,19 +101,17 @@ const api = {
  * @property {ClipsConfig} clips - Configurações específicas para canais de clipes.
  */
 
-/** 
- * @type {SettingsConfig} 
+/**
+ * @type {SettingsConfig}
  * @description Configurações gerais: Dados necessários para funcionamento correto.
  */
 const settings = {
-    prefix: "!",
-    channels: [
-        'arandas_izimirunelian', 'arandas013', 'daxlian'
-    ],
+    prefix: '!',
+    channels: ['arandas_izimirunelian', 'arandas013', 'daxlian'],
     clips: {
         main_channel_id: '1203529131195764776',
         test_channel_id: '1182492120611827803',
-        daxlian_main_channel: '957751483951104077'
+        daxlian_main_channel: '957751483951104077',
     },
 };
 

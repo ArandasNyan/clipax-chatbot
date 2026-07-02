@@ -40,21 +40,21 @@ async function isStreamActive(channelId) {
     try {
         const response = await twitch.get('/streams', {
             headers: {
-                'Authorization': `Bearer ${tokenData.access_token}`,
-                'Client-Id': config.api.twitch.auth.client_id
+                Authorization: `Bearer ${tokenData.access_token}`,
+                'Client-Id': config.api.twitch.auth.client_id,
             },
             params: {
-                user_id: channelId
-            }
+                user_id: channelId,
+            },
         });
 
         // Verifica se há dados na resposta; se sim, o canal está ao vivo
         return response.data.data.length > 0;
     } catch (error) {
-        throw new Error("Erro ao verificar o status da transmissão: " + error);
+        throw new Error('Erro ao verificar o status da transmissão: ' + error);
     }
 }
 
 module.exports = {
-    isStreamActive
+    isStreamActive,
 };

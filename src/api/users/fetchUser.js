@@ -34,12 +34,12 @@ async function fetchUserId(username) {
     try {
         const response = await twitch.get('/users', {
             headers: {
-                'Authorization': `Bearer ${tokenData.access_token}`,
-                'Client-Id': config.api.twitch.auth.client_id
+                Authorization: `Bearer ${tokenData.access_token}`,
+                'Client-Id': config.api.twitch.auth.client_id,
             },
             params: {
-                login: username
-            }
+                login: username,
+            },
         });
 
         if (response.data && response.data.data.length > 0) {

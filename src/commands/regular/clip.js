@@ -1,58 +1,95 @@
 const { createClip, getClip, sendClip } = require('../../api/clip/clip');
 const config = require('../../../config');
+const log = require('../../utils/logger');
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// A Twitch leva alguns segundos para processar um clipe recém-criado.
+// Em vez de um atraso fixo, fazemos polling até o clipe ficar disponível.
+const POLL_ATTEMPTS = 6;
+const POLL_INTERVAL_MS = 2000;
+
+async function fetchClipWhenReady(clipId) {
+    for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
+        await sleep(POLL_INTERVAL_MS);
+        const response = await getClip(clipId);
+        const clip = response?.data?.data?.[0];
+        if (clip && clip.thumbnail_url) {
+            return clip;
+        }
+    }
+    return null;
+}
 
 module.exports = {
     name: 'clip',
-    alias: ['clipar', 'clipe'],
+    aliases: ['clipar', 'clipe'],
+    permission: 'everyone',
+    cooldown: 15,
+    description: 'Cria um clipe da live atual e envia para o Discord.',
+    usage: '!clip [nome do clipe]',
 
-    async execute(client, channel, tags, args, message) {
-        const broadcaster_id = channel.replace('#', ''); // O nome do canal para o qual o clipe será criado
-        const clipChannelId = config.settings.clips.daxlian_main_channel; // Canal de destino no Discord para clipes
+    async execute({ client, channel, tags, args }) {
+        const broadcaster_id = channel.replace('#', '');
+        const clipChannelId = config.settings.clips.daxlian_main_channel;
+        const creatorTitle = args.join(' ').trim() || `O @${tags.username} acabou não dando um nome a esse clipe.`;
 
-        const messageParts = message.trim().split(/\s+/); // Divide a string em partes
-        const creator_title = messageParts.slice(1).join(' ') || `O @${tags.username} acabou não dando um nome a esse clipe.`; // Junta todas as partes após o primeiro comando (!clipe)
+        let createResponse;
+        try {
+            createResponse = await createClip(broadcaster_id);
+        } catch (error) {
+            log.error('Erro ao criar o clipe:', error.message);
+            client.say(channel, `@${tags.username}, não consegui criar o clipe. A live está ativa?`);
+            return;
+        }
+
+        const clipId = createResponse?.data?.data?.[0]?.id;
+        if (!clipId) {
+            client.say(channel, `@${tags.username}, não consegui criar o clipe agora. Tente novamente em instantes.`);
+            return;
+        }
+
+        client.say(channel, `Comecei a criar o seu clipe @${tags.username}!`);
 
         try {
-            // Cria o clipe e obtém um ID inicial
-            const create_clip = await createClip(broadcaster_id);
-            client.say(channel, `Comecei a criar o seu clipe @${tags.username}!`);
+            const clip = await fetchClipWhenReady(clipId);
+            if (!clip) {
+                client.say(
+                    channel,
+                    `@${tags.username}, o clipe foi criado mas ainda está processando. Veja no Twitch em instantes.`
+                );
+                return;
+            }
 
-            // Busca informações detalhadas do clipe
-            setTimeout(async () => {
-                const get_clip = await getClip(create_clip.data.data[0].id);
-                const clip = get_clip.data.data[0];
+            const clipInfo = {
+                title: clip.title,
+                description: `## ${creatorTitle}`,
+                url: clip.url,
+                broadcaster: {
+                    name: clip.broadcaster_name,
+                    url: `https://www.twitch.tv/${clip.broadcaster_name}`,
+                },
+                timestamp: clip.created_at,
+                creator: {
+                    name: tags['display-name'] || tags.username,
+                    url: `https://www.twitch.tv/${tags['display-name'] || tags.username}`,
+                },
+                thumbnail_url: clip.thumbnail_url,
+            };
 
-                // Define as informações adicionais para o embed no Discord
-                const clipInfo = {
-                    title: clip.title,
-                    description: `## ${creator_title}`,
-                    url: clip.url,
-                    broadcaster: {
-                        name: clip.broadcaster_name,
-                        url: `https://www.twitch.tv/${clip.broadcaster_name}`
-                    },
-                    timestamp: clip.created_at,
-                    creator: {
-                        name: tags['display-name'],
-                        url: `https://www.twitch.tv/${tags['display-name']}`
-                    },
-                    thumbnail_url: clip.thumbnail_url
-                };
+            const discordResponse = await sendClip(clipInfo, clipChannelId);
 
-                // Envia o clipe para o canal do Discord
-                const discordResponse = await sendClip(clipInfo, clipChannelId);
-
-                if (discordResponse && discordResponse.id != null) {
-                    // Confirmação no chat da Twitch se o clipe foi enviado com sucesso
-                    client.say(channel, `@${tags.username}, clipe criado com sucesso e enviado para o canal do Discord!`);
-                } else {
-                    // Mensagem de erro no chat da Twitch se o envio ao Discord falhou
-                    client.say(channel, `@${tags.username}, o clipe foi criado, mas houve um problema ao enviá-lo para o canal do Discord.`);
-                }
-            }, 6000);
+            if (discordResponse && discordResponse.id != null) {
+                client.say(channel, `@${tags.username}, clipe criado com sucesso e enviado para o Discord!`);
+            } else {
+                client.say(
+                    channel,
+                    `@${tags.username}, o clipe foi criado, mas houve um problema ao enviá-lo para o Discord.`
+                );
+            }
         } catch (error) {
-            console.error('Erro ao processar o clipe:', error);
-            client.say(channel, `@${tags.username}, houve um erro ao criar o clipe. Tente novamente mais tarde.`);
+            log.error('Erro ao processar o clipe:', error.message);
+            client.say(channel, `@${tags.username}, houve um erro ao finalizar o clipe. Tente novamente mais tarde.`);
         }
-    }
+    },
 };

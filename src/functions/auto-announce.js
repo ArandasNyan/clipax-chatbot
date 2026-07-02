@@ -1,19 +1,23 @@
 const fs = require('fs');
 const path = require('path');
-const config = require('../../config');
+const log = require('../utils/logger');
 const { isStreamActive } = require('../api/streams/stream-active');
 
 const configFilePath = path.resolve(__dirname, '../data/announcement/announceConfig.json');
-let autoAnnounceTimers = {};
-let announceConfig = loadAnnounceConfig();
+const autoAnnounceTimers = {};
+const announceConfig = loadAnnounceConfig();
 
 // Carrega a configuração de todos os canais
 function loadAnnounceConfig() {
     if (fs.existsSync(configFilePath)) {
-        return JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
-    } else {
-        return {}; // Retorna um objeto vazio se não houver configuração salva
+        try {
+            return JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
+        } catch (error) {
+            log.error('Erro ao ler announceConfig.json:', error.message);
+            return {};
+        }
     }
+    return {}; // Retorna um objeto vazio se não houver configuração salva
 }
 
 // Salva as configurações no arquivo JSON
@@ -23,7 +27,7 @@ function saveAnnounceConfig() {
 
 // Inicia o Auto Announce para todos os canais configurados
 function startAutoAnnounce(client) {
-    Object.keys(announceConfig).forEach(channel => {
+    Object.keys(announceConfig).forEach((channel) => {
         if (announceConfig[channel].isActive) {
             initializeAnnounceForChannel(channel, client);
         }
@@ -46,7 +50,7 @@ function initializeAnnounceForChannel(channel, client) {
                 client.say(channel, channelConfig.message);
             }
         } catch (error) {
-            console.error(`Erro ao verificar o status de live para o canal ${channel}:`, error.message);
+            log.error(`Erro ao verificar o status de live para o canal ${channel}:`, error.message);
         }
     }, announceConfig[channel].interval);
 }
@@ -56,44 +60,45 @@ function updateAnnounceSettings(channel, option, value, client) {
     if (!announceConfig[channel]) {
         announceConfig[channel] = {
             isActive: false,
-            message: "Não esqueçam de cliparem os melhores momentos da live! Use !clipe <nome do seu clipe>.",
-            interval: 10 * 60 * 1000 // Intervalo padrão de 10 minutos
+            message: 'Não esqueçam de cliparem os melhores momentos da live! Use !clipe <nome do seu clipe>.',
+            interval: 10 * 60 * 1000, // Intervalo padrão de 10 minutos
         };
     }
 
     switch (option) {
         case 'edit':
             announceConfig[channel].message = value;
-            console.log(`Mensagem de anúncio para o canal ${channel} atualizada para: "${value}"`);
+            log.info(`Mensagem de anúncio para o canal ${channel} atualizada para: "${value}"`);
             break;
         case 'on':
             announceConfig[channel].isActive = true;
             initializeAnnounceForChannel(channel, client);
-            console.log(`Auto Announce ativado para o canal ${channel}.`);
+            log.info(`Auto Announce ativado para o canal ${channel}.`);
             break;
         case 'off':
             announceConfig[channel].isActive = false;
             if (autoAnnounceTimers[channel]) {
                 clearInterval(autoAnnounceTimers[channel]);
             }
-            console.log(`Auto Announce desativado para o canal ${channel}.`);
+            log.info(`Auto Announce desativado para o canal ${channel}.`);
             break;
-        case 'interval':
+        case 'interval': {
             const intervalMinutes = parseInt(value, 10);
             if (!isNaN(intervalMinutes) && intervalMinutes > 0) {
                 announceConfig[channel].interval = intervalMinutes * 60 * 1000;
-                console.log(`Intervalo de anúncio para o canal ${channel} atualizado para ${intervalMinutes} minutos.`);
+                log.info(`Intervalo de anúncio para o canal ${channel} atualizado para ${intervalMinutes} minutos.`);
             }
             break;
+        }
         case 'delete':
             if (autoAnnounceTimers[channel]) {
                 clearInterval(autoAnnounceTimers[channel]);
             }
             delete announceConfig[channel];
-            console.log(`Configurações de anúncio para o canal ${channel} removidas.`);
+            log.info(`Configurações de anúncio para o canal ${channel} removidas.`);
             break;
         default:
-            console.log('Opção inválida.');
+            log.warn('Opção de anúncio inválida.');
             return;
     }
 
@@ -105,8 +110,8 @@ function getAnnounceStatus(channel) {
     const channelConfig = announceConfig[channel] || {};
     return {
         isActive: channelConfig.isActive || false,
-        message: channelConfig.message || "Nenhuma mensagem definida.",
-        interval: (channelConfig.interval || 600000) / 60000 // Em minutos
+        message: channelConfig.message || 'Nenhuma mensagem definida.',
+        interval: (channelConfig.interval || 600000) / 60000, // Em minutos
     };
 }
 
