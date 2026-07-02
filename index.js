@@ -1,115 +1,122 @@
 const express = require('express');
-const { getAuthorizationUrl, getTokenFromCode, loadTokens, scheduleTokenRefresh, saveTokens } = require('./src/api/oauth/token');
-const { loadCommands } = require('./src/utils/bot/commandLoader');
-const { startAutoAnnounce } = require('./src/functions/auto-announce')
-const config = require('./config');
 const tmi = require('tmi.js');
+const config = require('./config');
+const log = require('./src/utils/logger');
+const { assertConfig } = require('./src/utils/validateConfig');
+const {
+    getAuthorizationUrl,
+    getTokenFromCode,
+    loadTokens,
+    scheduleTokenRefresh,
+    saveTokens,
+} = require('./src/api/oauth/token');
+const { loadCommands } = require('./src/utils/bot/commandLoader');
+const { createMessageHandler } = require('./src/utils/bot/commandHandler');
 
 const app = express();
 const PORT = config.server.port;
+
 let client;
 
-// Função para iniciar o bot
+/** Cria o client tmi.js e registra os handlers de chat e de conexão. */
 function startBot() {
     client = new tmi.Client({
         options: { debug: false },
+        connection: { reconnect: true, secure: true },
         identity: {
             username: config.api.twitch.user.username,
-            password: config.api.twitch.auth.oauth_token
+            password: config.api.twitch.auth.oauth_token,
         },
-        channels: config.settings.channels  // Canais que o bot monitorará
+        channels: config.settings.channels,
     });
 
-    client.connect()
-        .then(() => { 
-            console.log('Bot conectado ao chat!')
-            // startAutoAnnounce(client);
-        })
-        .catch(err => console.error('Erro ao conectar o bot:', err));
-
-
-    // Carregar os comandos
     const commands = loadCommands();
+    client.on('message', createMessageHandler(client, commands));
 
-    // Executar os comandos quando uma mensagem for enviada no chat
-    client.on('message', (channel, tags, message, self) => {
-        if (self || !message.startsWith(config.settings.prefix)) return;
+    client.on('connected', (address, port) => {
+        log.info(`Bot conectado ao chat (${address}:${port}).`);
+        // Para ativar o anúncio automático, descomente as duas linhas abaixo:
+        // const { startAutoAnnounce } = require('./src/functions/auto-announce');
+        // startAutoAnnounce(client);
+    });
+    client.on('disconnected', (reason) => log.warn(`Desconectado do chat: ${reason}`));
+    client.on('reconnect', () => log.info('Reconectando ao chat...'));
 
-        const args = message.slice(config.settings.prefix.length).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
+    client.connect().catch((err) => log.error('Erro ao conectar o bot:', err.message));
 
-        // Obter o comando com base no nome ou alias
-        const command = commands[commandName];
+    return client;
+}
 
-        // Verifica se o comando existe
-        if (!command) {
-            return;
+/** Fecha a conexão do bot de forma limpa. */
+async function shutdown(signal) {
+    log.info(`Recebido ${signal}, encerrando...`);
+    try {
+        if (client) await client.disconnect();
+    } catch (error) {
+        log.warn('Erro ao desconectar:', error.message);
+    } finally {
+        process.exit(0);
+    }
+}
+
+/** Inicia o fluxo de OAuth quando não há token válido salvo. */
+function startOAuthServer() {
+    app.get('/api/twitch/oauth/callback', async (req, res) => {
+        const code = req.query.code;
+        if (!code) {
+            return res.status(400).send('Código de autorização não encontrado.');
         }
 
         try {
-            // Executar o comando encontrado
-            command.execute(client, channel, tags, args, message);
+            const newTokenData = await getTokenFromCode(code);
+            if (newTokenData && newTokenData.access_token) {
+                saveTokens(newTokenData);
+                startBot();
+                scheduleTokenRefresh();
+                res.send('Autenticação bem-sucedida! O bot está agora conectado.');
+            } else {
+                res.status(500).send('Erro ao obter token. Token não encontrado na resposta.');
+            }
         } catch (error) {
-            console.error(`Erro ao executar o comando ${commandName}:`, error);
+            log.error('Erro ao obter token:', error.message);
+            if (!res.headersSent) {
+                res.status(500).send('Erro ao obter token.');
+            }
+        } finally {
+            server.close();
+        }
+    });
+
+    const server = app.listen(PORT, async () => {
+        log.info(`Servidor de autenticação ativo na porta ${PORT}.`);
+        const authorizationUrl = getAuthorizationUrl();
+        try {
+            const open = (await import('open')).default;
+            await open(authorizationUrl);
+        } catch {
+            log.info(`Abra a URL para autorizar o bot:\n${authorizationUrl}`);
         }
     });
 }
 
-// Inicializa o processo de autenticação e troca de token
-async function Initialize() {
+/** Ponto de entrada: valida config, inicia OAuth ou conecta direto. */
+function initialize() {
+    assertConfig();
+
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('unhandledRejection', (reason) => log.error('Unhandled rejection:', reason));
+
     const tokenData = loadTokens();
 
     if (!tokenData || (tokenData.expires_at && tokenData.expires_at < Date.now())) {
-        console.log('Token ausente ou expirado. Iniciando processo de autenticação...');
-
-        // Define a rota de callback para capturar o código da Twitch
-        app.get('/api/twitch/oauth/callback', async (req, res) => {
-            const code = req.query.code;
-            if (!code) {
-                return res.status(400).send('Código de autorização não encontrado.');
-            }
-
-            // Trocar o código por um token de acesso
-            try {
-                const newTokenData = await getTokenFromCode(code);
-
-                if (newTokenData && newTokenData.access_token) {
-                    saveTokens(newTokenData);  // Salva os tokens no arquivo
-                    startBot();
-                    scheduleTokenRefresh();  // Agende a próxima renovação do token
-                    res.send('Autenticação bem-sucedida! O bot está agora conectado.');
-                } else {
-                    res.status(500).send('Erro ao obter token. Token não encontrado na resposta.');
-                }
-
-            } catch (error) {
-                console.error('Erro ao obter token:', error);
-                if (!res.headersSent) {
-                    res.status(500).send('Erro ao obter token.');
-                }
-            } finally {
-                // Fechar o servidor após a autenticação inicial
-                server.close();
-            }
-        });
-
-        // Iniciar o servidor
-        const server = app.listen(PORT, async () => {
-            console.log(`Servidor operando.`);
-            const authorizationUrl = getAuthorizationUrl();
-            const open = (await import('open')).default;
-            await open(authorizationUrl);
-        });
+        log.info('Token ausente ou expirado. Iniciando processo de autenticação...');
+        startOAuthServer();
     } else {
-        console.log('Token válido encontrado. Iniciando o bot e agendando renovação...');
-
-        // Se o token já é válido, inicia o bot diretamente
+        log.info('Token válido encontrado. Iniciando o bot e agendando renovação...');
         startBot();
-
-        // Agendar a renovação do token
         scheduleTokenRefresh();
     }
 }
 
-// Inicia o processo de autenticação e configuração do servidor
-Initialize();
+initialize();

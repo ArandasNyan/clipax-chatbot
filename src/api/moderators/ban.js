@@ -1,7 +1,7 @@
-const { twitch } = require('../../utils/api/settings')
-const { loadTokens } = require('../oauth/token')
-const config = require('../../../config')
-const { fetchUserId } = require('../users/fetchUser')
+const { twitch } = require('../../utils/api/settings');
+const { loadTokens } = require('../oauth/token');
+const config = require('../../../config');
+const { fetchUserId } = require('../users/fetchUser');
 
 /**
  * Bane permanentemente um usuário do chat de um canal da Twitch.
@@ -17,7 +17,7 @@ const { fetchUserId } = require('../users/fetchUser')
  * @param {string} [reason] - (Opcional) Motivo do banimento.
  * @throws {Error} Se o token de acesso não estiver disponível ou ocorrer um erro ao aplicar o banimento.
  * @returns {Promise<Object>} Os dados da resposta da API da Twitch, confirmando o banimento.
- * 
+ *
  * @example
  * announce(broadcaster_id, moderator_id, user_id, reason)
  *     .then((response) => {
@@ -40,20 +40,21 @@ async function ban(broadcaster_id, moderator_id, user_id, reason) {
     user_id = await fetchUserId(user_id);
 
     try {
-        const response = await twitch.post('/moderation/bans',
+        const response = await twitch.post(
+            '/moderation/bans',
             {
                 data: {
                     user_id: user_id,
-                    reason: reason || undefined
-                }
+                    reason: reason || undefined,
+                },
             },
             {
                 params: {
                     broadcaster_id: broadcaster_id,
-                    moderator_id: moderator_id
+                    moderator_id: moderator_id,
                 },
                 headers: {
-                    'Authorization': `Bearer ${tokenData.access_token}`,
+                    Authorization: `Bearer ${tokenData.access_token}`,
                     'Client-ID': config.api.twitch.auth.client_id,
                 },
             }
@@ -61,10 +62,10 @@ async function ban(broadcaster_id, moderator_id, user_id, reason) {
 
         return response.data;
     } catch (error) {
-        throw new Error("Erro ao banir o usuário: " + error);
+        throw new Error('Erro ao banir o usuário: ' + error);
     }
 }
 
 module.exports = {
-    ban
-}
+    ban,
+};

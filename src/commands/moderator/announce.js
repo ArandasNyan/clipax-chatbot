@@ -1,12 +1,17 @@
 const { updateAnnounceSettings, getAnnounceStatus } = require('../../functions/auto-announce');
 
+const USAGE = 'Uso: !announce <edit|on|off|interval|status|delete> <mensagem/minutos>';
+
 module.exports = {
     name: 'announce',
-    alias: ['anuncio'],
+    aliases: ['anuncio'],
+    permission: 'moderator',
+    description: 'Gerencia o anúncio automático do canal.',
+    usage: `${USAGE}. Ex.: !announce edit Nova mensagem aqui`,
 
-    execute(client, channel, tags, args) {
+    execute({ client, channel, args }) {
         if (args.length === 0) {
-            client.say(channel, `Uso: !announce <edit|on|off|interval|status|add|delete> <mensagem/timer>. Exemplo: !announce edit Nova mensagem aqui`);
+            client.say(channel, `${USAGE}. Ex.: !announce edit Nova mensagem aqui`);
             return;
         }
 
@@ -16,7 +21,7 @@ module.exports = {
         switch (subcommand) {
             case 'edit':
                 if (!value) {
-                    client.say(channel, 'Erro: Use `!announce edit <nova mensagem>`.');
+                    client.say(channel, 'Erro: use `!announce edit <nova mensagem>`.');
                     return;
                 }
                 updateAnnounceSettings(channel, 'edit', value, client);
@@ -33,20 +38,26 @@ module.exports = {
                 client.say(channel, 'Anúncio automático desativado.');
                 break;
 
-            case 'interval':
-                if (!value) {
-                    client.say(channel, 'Erro: Use `!announce interval <minutos>`.');
+            case 'interval': {
+                const minutes = parseInt(value, 10);
+                if (isNaN(minutes) || minutes <= 0) {
+                    client.say(channel, 'Erro: use `!announce interval <minutos>` (número maior que zero).');
                     return;
                 }
-                updateAnnounceSettings(channel, 'interval', value, client);
-                client.say(channel, `Intervalo de anúncio definido para ${isNaN(value) == true ? `tempo ${value}.` : `${value} minuto(s)`}`);
+                updateAnnounceSettings(channel, 'interval', String(minutes), client);
+                client.say(channel, `Intervalo de anúncio definido para ${minutes} minuto(s).`);
                 break;
+            }
 
-            case 'status':
+            case 'status': {
                 const status = getAnnounceStatus(channel);
                 const activeStatus = status.isActive ? 'ativo' : 'inativo';
-                client.say(channel, `Status: ${activeStatus}, Mensagem: "${status.message}", Intervalo: ${status.interval} minutos.`);
+                client.say(
+                    channel,
+                    `Status: ${activeStatus} | Mensagem: "${status.message}" | Intervalo: ${status.interval} minutos.`
+                );
                 break;
+            }
 
             case 'delete':
                 updateAnnounceSettings(channel, 'delete', null, client);
@@ -54,8 +65,8 @@ module.exports = {
                 break;
 
             default:
-                client.say(channel, `Comando inválido. Uso: !announce <edit|on|off|interval|status|delete>.`);
+                client.say(channel, `Comando inválido. ${USAGE}.`);
                 break;
         }
-    }
+    },
 };

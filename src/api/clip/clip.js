@@ -1,11 +1,11 @@
-const { twitch, discord } = require('../../utils/api/settings')
-const { loadTokens } = require('../oauth/token')
-const config = require('../../../config')
-const { fetchUserId } = require('../users/fetchUser')
+const { twitch, discord } = require('../../utils/api/settings');
+const { loadTokens } = require('../oauth/token');
+const config = require('../../../config');
+const { fetchUserId } = require('../users/fetchUser');
 
 /**
  * Essa função tem o objetivo de criar um clipe a partir de informações obtidas no comando !clip
- * 
+ *
  * @async
  * @param {string} broadcaster_id Nome do broadcaster para buscar o id
  * @returns {Promise<Object>} Um objeto com dados do clipe criado: id e edit_url
@@ -23,28 +23,28 @@ async function createClip(broadcaster_id) {
         throw new Error('Token de acesso não disponível.');
     }
 
-    broadcaster_id = await fetchUserId(broadcaster_id)
+    broadcaster_id = await fetchUserId(broadcaster_id);
 
     try {
         const response = await twitch.post('/clips', null, {
             params: {
-                broadcaster_id: broadcaster_id  // O ID do broadcaster para o qual o clip será criado
+                broadcaster_id: broadcaster_id, // O ID do broadcaster para o qual o clip será criado
             },
             headers: {
-                'Authorization': `Bearer ${tokenData.access_token}`,
+                Authorization: `Bearer ${tokenData.access_token}`,
                 'Client-ID': config.api.twitch.auth.client_id,
-            }
+            },
         });
 
         return response;
     } catch (error) {
-        throw new Error("Erro ao criar um clipe: " + error);
+        throw new Error('Erro ao criar um clipe: ' + error);
     }
 }
 
 /**
  * Essa função tem o objeto de buscar dados mais profundo de um clipe.
- * 
+ *
  * @async
  * @param {string} id Id do clipe para buscar o clipe
  * @returns {Promise<Object>} Um objeto com dados do clipe
@@ -65,17 +65,17 @@ async function getClip(id) {
     try {
         const response = await twitch.get('/clips', {
             params: {
-                id: id  // Passando o clip_id como parâmetro da API da Twitch
+                id: id, // Passando o clip_id como parâmetro da API da Twitch
             },
             headers: {
-                'Authorization': `Bearer ${tokenData.access_token}`,
+                Authorization: `Bearer ${tokenData.access_token}`,
                 'Client-ID': config.api.twitch.auth.client_id,
-            }
+            },
         });
 
         return response;
     } catch (error) {
-        throw new Error("Não foi possível encontrar o clipe: " + error);
+        throw new Error('Não foi possível encontrar o clipe: ' + error);
     }
 }
 
@@ -112,59 +112,61 @@ async function getClip(id) {
 async function sendClip(clip, clip_channel_id) {
     try {
         const payload = {
-            "title": clip.title,
-            "description": clip.description,
-            "url": clip.broadcaster.url,
-            "color": 9255659,
-            "timestamp": clip.timestamp,
-            "footer": {
-                "text": "Clipax",
-                "icon_url": "https://cdn.discordapp.com/avatars/1223408919347597454/6513f196447d8ec955e7e6b559020f44.webp?size=160"
+            title: clip.title,
+            description: clip.description,
+            url: clip.broadcaster.url,
+            color: 9255659,
+            timestamp: clip.timestamp,
+            footer: {
+                text: 'Clipax',
+                icon_url:
+                    'https://cdn.discordapp.com/avatars/1223408919347597454/6513f196447d8ec955e7e6b559020f44.webp?size=160',
             },
-            "author": {
-                "name": `✦･ﾟ Clip by @${clip.creator.name} ⋆｡˚`,
-                "url": clip.creator.url
+            author: {
+                name: `✦･ﾟ Clip by @${clip.creator.name} ⋆｡˚`,
+                url: clip.creator.url,
             },
-            "image": {
-                "url": clip.thumbnail_url
-            }
+            image: {
+                url: clip.thumbnail_url,
+            },
         };
 
-        const response = await discord.post(`/v10/channels/${clip_channel_id}/messages`,
+        const response = await discord.post(
+            `/v10/channels/${clip_channel_id}/messages`,
             {
-                "content": "",
-                "embeds": [payload], // O Discord espera um array de embeds
-                "components": [
+                content: '',
+                embeds: [payload], // O Discord espera um array de embeds
+                components: [
                     {
-                        "type": 1,
-                        "components": [
+                        type: 1,
+                        components: [
                             {
-                                "type": 2,
-                                "style": 5,
-                                "label": "Ver clipe",
-                                "url": clip.url
-                            }
-                        ]
-                    }
+                                type: 2,
+                                style: 5,
+                                label: 'Ver clipe',
+                                url: clip.url,
+                            },
+                        ],
+                    },
                 ],
-                "tts": false
+                tts: false,
             },
             {
                 headers: {
-                    "Authorization": `Bot ${config.api.discord.auth.oauth_token}`,
-                    "Content-Type": "application/json"
-                }
+                    Authorization: `Bot ${config.api.discord.auth.oauth_token}`,
+                    'Content-Type': 'application/json',
+                },
             }
         );
 
         return response.data;
     } catch (error) {
-        throw new Error("Não foi possível enviar o clipe: " + error);
+        throw new Error('Não foi possível enviar o clipe: ' + error);
     }
 }
 
 module.exports = {
     createClip,
     getClip,
-    sendClip
-}
+    sendClip,
+};

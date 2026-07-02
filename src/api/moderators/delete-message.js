@@ -1,7 +1,7 @@
-const { twitch } = require('../../utils/api/settings')
-const { loadTokens } = require('../oauth/token')
-const config = require('../../../config')
-const { fetchUserId } = require('../user/fetchUser')
+const { twitch } = require('../../utils/api/settings');
+const { loadTokens } = require('../oauth/token');
+const config = require('../../../config');
+const { fetchUserId } = require('../users/fetchUser');
 
 /**
  * Deleta uma mensagem específica no chat de um canal da Twitch.
@@ -26,7 +26,7 @@ const { fetchUserId } = require('../user/fetchUser')
  *     });
  */
 async function message_delete(broadcaster_id, message_id, moderator_id) {
-    const tokenData = loadTokens();  // Carregar os tokens
+    const tokenData = loadTokens(); // Carregar os tokens
 
     if (!tokenData || !tokenData.access_token) {
         throw new Error('Token de acesso não disponível.');
@@ -34,7 +34,7 @@ async function message_delete(broadcaster_id, message_id, moderator_id) {
 
     // Obter o ID do broadcaster, moderator e user
     moderator_id = await fetchUserId(moderator_id);
-    broadcaster_id = await fetchUserId(broadcaster_id)
+    broadcaster_id = await fetchUserId(broadcaster_id);
 
     try {
         // Requisição DELETE para a Twitch API
@@ -42,21 +42,20 @@ async function message_delete(broadcaster_id, message_id, moderator_id) {
             params: {
                 broadcaster_id: broadcaster_id,
                 moderator_id: moderator_id,
-                message_id: message_id
+                message_id: message_id,
             },
             headers: {
-                'Authorization': `Bearer ${tokenData.access_token}`,
+                Authorization: `Bearer ${tokenData.access_token}`,
                 'Client-ID': config.api.twitch.auth.client_id,
-            }
+            },
         });
 
         return response.data;
     } catch (error) {
-        throw new Error("Erro ao deletar a mensagem: " + error);
+        throw new Error('Erro ao deletar a mensagem: ' + error);
     }
 }
 
-
 module.exports = {
-    message_delete
-}
+    message_delete,
+};

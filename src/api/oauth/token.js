@@ -2,7 +2,7 @@ const fs = require('fs');
 const qs = require('qs');
 const path = require('path');
 const config = require('../../../config');
-const { oauth } = require('../../utils/api/settings');  // Importa a instância configurada para OAuth
+const { oauth } = require('../../utils/api/settings'); // Importa a instância configurada para OAuth
 
 const tokenFilePath = path.resolve(__dirname, '../../data/credentials/tokens.json');
 
@@ -48,8 +48,8 @@ const scopes = [
     'user:read:broadcast',
     'user:read:email',
     'user:read:follows',
-    'user:read:subscriptions'
-].join(" ");
+    'user:read:subscriptions',
+].join(' ');
 
 /**
  * Gera a URL de autorização da Twitch.
@@ -66,7 +66,7 @@ function getAuthorizationUrl() {
 function saveTokens(tokenData) {
     const data = {
         ...tokenData,
-        expires_at: Date.now() + (tokenData.expires_in * 1000)
+        expires_at: Date.now() + tokenData.expires_in * 1000,
     };
     fs.writeFileSync(tokenFilePath, JSON.stringify(data, null, 2), 'utf-8');
 }
@@ -78,7 +78,8 @@ function saveTokens(tokenData) {
 function loadTokens() {
     if (fs.existsSync(tokenFilePath)) {
         const data = fs.readFileSync(tokenFilePath, 'utf-8');
-        if (data) { // Verifique se o arquivo não está vazio
+        if (data) {
+            // Verifique se o arquivo não está vazio
             try {
                 return JSON.parse(data);
             } catch (error) {
@@ -98,19 +99,21 @@ function loadTokens() {
  */
 async function getTokenFromCode(code) {
     try {
-        const response = await oauth.post('/oauth2/token',
+        const response = await oauth.post(
+            '/oauth2/token',
             qs.stringify({
                 client_id: config.api.twitch.auth.client_id,
                 client_secret: config.api.twitch.auth.client_secret,
                 code: code,
                 grant_type: 'authorization_code',
-                redirect_uri: config.server.redirect_uri
+                redirect_uri: config.server.redirect_uri,
             }),
             {
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-            });
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            }
+        );
         saveTokens(response.data);
         console.log('Tokens salvos com sucesso.');
         return response.data;
@@ -133,14 +136,20 @@ async function refreshAccessToken() {
     }
 
     try {
-        const response = await oauth.post('/oauth2/token', null, {
-            params: {
+        const response = await oauth.post(
+            '/oauth2/token',
+            qs.stringify({
                 client_id: config.api.twitch.auth.client_id,
                 client_secret: config.api.twitch.auth.client_secret,
                 refresh_token: tokenData.refresh_token,
-                grant_type: 'refresh_token'
+                grant_type: 'refresh_token',
+            }),
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
             }
-        });
+        );
 
         saveTokens(response.data);
         console.log('Token renovado com sucesso.');
@@ -162,15 +171,19 @@ function scheduleTokenRefresh() {
     }
 
     const timeUntilExpiration = tokenData.expires_at - Date.now();
-    const timeToSchedule = timeUntilExpiration - (5 * 60 * 1000);  // Renova 5 minutos antes de expirar
+    const timeToSchedule = timeUntilExpiration - 5 * 60 * 1000; // Renova 5 minutos antes de expirar
+
+    const renew = () => {
+        refreshAccessToken()
+            .then(scheduleTokenRefresh)
+            .catch((error) => console.error('Falha ao renovar/reagendar o token:', error.message));
+    };
 
     if (timeToSchedule <= 0) {
         console.log('Token próximo de expirar, renovando agora...');
-        refreshAccessToken().then(scheduleTokenRefresh);
+        renew();
     } else {
-        setTimeout(() => {
-            refreshAccessToken().then(scheduleTokenRefresh);
-        }, timeToSchedule);
+        setTimeout(renew, timeToSchedule);
     }
 }
 
@@ -180,5 +193,5 @@ module.exports = {
     getAuthorizationUrl,
     getTokenFromCode,
     refreshAccessToken,
-    scheduleTokenRefresh
+    scheduleTokenRefresh,
 };

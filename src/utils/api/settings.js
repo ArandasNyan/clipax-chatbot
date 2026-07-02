@@ -19,7 +19,7 @@ const config = require('../../../config');
  */
 const oauth = axios.create({
     baseURL: config.api.twitch.oauth_uri, // URL base para OAuth
-    timeout: 5000,  // Timeout de 5 segundos
+    timeout: 5000, // Timeout de 5 segundos
     headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
     },
@@ -43,7 +43,7 @@ const oauth = axios.create({
  */
 const twitch = axios.create({
     baseURL: config.api.twitch.base_uri, // URL base para os endpoints
-    timeout: 5000,  // Timeout de 5 segundos
+    timeout: 5000, // Timeout de 5 segundos
     headers: {
         'Content-Type': 'application/json',
     },
@@ -67,7 +67,7 @@ const twitch = axios.create({
  */
 const discord = axios.create({
     baseURL: config.api.discord.base_uri, // URL base para os endpoints
-    timeout: 5000,  // Timeout de 5 segundos
+    timeout: 5000, // Timeout de 5 segundos
     headers: {
         'Content-Type': 'application/json',
     },
@@ -77,5 +77,5 @@ const discord = axios.create({
 module.exports = {
     oauth,
     twitch,
-    discord
+    discord,
 };

@@ -1,20 +1,34 @@
 {
-  "name": "mirunebot",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "arandasnyan",
-  "license": "MIT",
-  "description": "",
-  "dependencies": {
-    "axios": "^1.8.2",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.2",
-    "fs": "^0.0.1-security",
-    "open": "^10.1.0",
-    "qs": "^6.13.0",
-    "tmi.js": "^1.8.5"
-  }
+    "name": "clipax-chatbot",
+    "version": "1.1.0",
+    "main": "index.js",
+    "description": "Bot de Twitch (tmi.js) que cria clipes e os envia para o Discord, com anúncios automáticos e comandos de moderação.",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "author": "arandasnyan",
+    "license": "MIT",
+    "engines": {
+        "node": ">=18"
+    },
+    "dependencies": {
+        "axios": "^1.8.2",
+        "dotenv": "^16.4.5",
+        "express": "^4.21.2",
+        "open": "^10.1.0",
+        "qs": "^6.13.0",
+        "tmi.js": "^1.8.5"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.13.0",
+        "eslint": "^9.13.0",
+        "globals": "^15.11.0",
+        "nodemon": "^3.1.7",
+        "prettier": "^3.3.3"
+    }
 }
